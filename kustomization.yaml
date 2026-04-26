@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+
+# Pin the image tag here when you want a deterministic rollout instead of
+# tracking :latest. Example:
+# images:
+#   - name: ghcr.io/ilp0/playforia-minigolf-browser-port
+#     newTag: sha-abcd123
