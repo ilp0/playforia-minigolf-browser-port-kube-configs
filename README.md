@@ -70,3 +70,8 @@ The CI workflow tags every build with `sha-<short>`, every tag push with
 - **Read-only root filesystem** is enforced. The server writes nothing to
   disk — all state is in-memory and tracks/assets are baked into the
   image — so this is safe.
+- **Chat toggle**: `CHAT_ENABLED` env var on the container. Default `"1"`
+  in the manifest; flip to `"0"` (or `"false"`/`"off"`/`"no"`) and roll
+  out to drop incoming chat packets server-side. Useful if you don't
+  want to moderate. The CLI equivalents are `--chat-disabled` /
+  `--chat-enabled`.

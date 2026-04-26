@@ -35,6 +35,13 @@ spec:
             # cap. Disable it here — rely on the LB / WAF for rate limiting.
             - "--max-conns-per-ip"
             - "0"
+          env:
+            # Lobby/game chat. Set to "0" (or "false"/"off"/"no") to drop
+            # incoming say/sayp packets server-side — the operator opt-out
+            # for hosting without moderating chat. Default in-server is
+            # enabled, so omit this env var entirely if you don't care.
+            - name: CHAT_ENABLED
+              value: "1"
           ports:
             - name: http
               containerPort: 4242
