@@ -25,7 +25,14 @@ spec:
         - name: server
           image: ghcr.io/ilp0/playforia-minigolf-browser-port:latest
           imagePullPolicy: Always
+          # The image's default CMD invokes node with the TS entrypoint and
+          # default flags. k8s `args` replaces CMD entirely, so we have to
+          # repeat the node invocation here, not just the extra flags.
           args:
+            - "node"
+            - "--experimental-strip-types"
+            - "--no-warnings"
+            - "src/main.ts"
             - "--host"
             - "0.0.0.0"
             - "--port"
