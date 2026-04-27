@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minigolf
+  namespace: minigolf-beta
+  labels:
+    app: minigolf
+spec:
+  # Server state (lobbies, games, daily room) is in-memory only, so a second
+  # replica would be a separate world. Keep at 1 unless/until state moves out.
+  replicas: 1
+  strategy:
+    # Game sessions die on restart anyway — replace cleanly instead of running
+    # two pods in parallel during rollout.
+    type: Recreate
+  selector:
+    matchLabels:
+      app: minigolf
+  template:
+    metadata:
+      labels:
+        app: minigolf
+    spec:
+      containers:
+        - name: server
+          image: ghcr.io/ilp0/playforia-minigolf-browser-port:beta
+          imagePullPolicy: Always
+          # The image's default CMD invokes node with the TS entrypoint and
+          # default flags. k8s `args` replaces CMD entirely, so we have to
+          # repeat the node invocation here, not just the extra flags.
+          args:
+            - "node"
+            - "--experimental-strip-types"
+            - "--no-warnings"
+            - "src/main.ts"
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "4242"
+            # Cluster ingress collapses every client to one upstream IP from
+            # the server's perspective, so the per-IP cap would be a global
+            # cap. Disable it here — rely on the LB / WAF for rate limiting.
+            - "--max-conns-per-ip"
+            - "0"
+          env:
+            # Lobby/game chat. Set to "0" (or "false"/"off"/"no") to drop
+            # incoming say/sayp packets server-side — the operator opt-out
+            # for hosting without moderating chat. Default in-server is
+            # enabled, so omit this env var entirely if you don't care.
+            - name: CHAT_ENABLED
+              value: "1"
+          ports:
+            - name: http
+              containerPort: 4242
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 2000m
+              memory: 2048Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop: ["ALL"]
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault

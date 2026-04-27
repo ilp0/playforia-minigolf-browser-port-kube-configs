@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: minigolf
+  namespace: minigolf-beta
+  labels:
+    app: minigolf
+  # No TLS section: SSL is terminated upstream at the load balancer and the
+  # cluster only sees plain HTTP on port 80. Traefik (k3s default) handles
+  # WebSocket upgrades on /ws transparently — no extra annotation needed.
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: beta.minigolf.0m.fi
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: minigolf
+                port:
+                  number: 80

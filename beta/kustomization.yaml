@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Beta deployment — self-contained. Mirrors the prod manifests at the repo
+# root, with three deltas: namespace `minigolf-beta`, image tag `:beta`,
+# ingress host `beta.minigolf.0m.fi`. Kept self-contained (rather than as a
+# kustomize overlay over the root) because kustomize's default load
+# restrictor blocks resources outside the overlay directory.
+#
+# Trade-off: future changes to deployment/service must be applied to both
+# the root files (prod) and beta/ (this overlay). The duplication is small
+# (~3 files) and the surgical separation is worth it for a temporary beta.
+
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+
+# :beta moves on every push to the `beta` branch in the upstream repo. The
+# deployment sets imagePullPolicy: Always, so a rollout restart is enough
+# to pick up a fresh image:
+#   kubectl -n minigolf-beta rollout restart deployment/minigolf
