@@ -28,31 +28,38 @@ spec:
           # The image's default CMD invokes node with the TS entrypoint and
           # default flags. k8s `args` replaces CMD entirely, so we have to
           # repeat the node invocation here, not just the extra flags.
+          # Wrapped in `sh -c` so stdout/stderr is tee'd to a per-pod log
+          # file on the persistent volume mounted at /var/log/minigolf,
+          # while still flowing to stdout for `kubectl logs`. Trap forwards
+          # SIGTERM to node so the pod still shuts down within grace period.
           args:
-            - "node"
-            - "--experimental-strip-types"
-            - "--no-warnings"
-            - "src/main.ts"
-            - "--host"
-            - "0.0.0.0"
-            - "--port"
-            - "4242"
-            # Cluster ingress collapses every client to one upstream IP from
-            # the server's perspective, so the per-IP cap would be a global
-            # cap. Disable it here — rely on the LB / WAF for rate limiting.
-            - "--max-conns-per-ip"
-            - "0"
+            - "sh"
+            - "-c"
+            - |
+              set -e
+              LOGDIR=/var/log/minigolf
+              LOGFILE="$LOGDIR/server-$(date -u +%Y%m%dT%H%M%SZ)-${HOSTNAME:-pod}.log"
+              echo "[wrapper] logging to $LOGFILE"
+              trap 'kill -TERM "$PID" 2>/dev/null' TERM INT
+              node --experimental-strip-types --no-warnings src/main.ts \
+                --host 0.0.0.0 --port 4242 --max-conns-per-ip 0 \
+                2>&1 | tee -a "$LOGFILE" &
+              PID=$!
+              wait "$PID"
           env:
             # Lobby/game chat. Set to "0" (or "false"/"off"/"no") to drop
             # incoming say/sayp packets server-side — the operator opt-out
             # for hosting without moderating chat. Default in-server is
             # enabled, so omit this env var entirely if you don't care.
             - name: CHAT_ENABLED
-              value: "1"
+              value: "0"
           ports:
             - name: http
               containerPort: 4242
               protocol: TCP
+          volumeMounts:
+            - name: logs
+              mountPath: /var/log/minigolf
           readinessProbe:
             httpGet:
               path: /
@@ -82,5 +89,12 @@ spec:
             capabilities:
               drop: ["ALL"]
       securityContext:
+        # Match runAsUser so the log volume is writable by the unprivileged
+        # process. local-path provisioner creates the dir as root otherwise.
+        fsGroup: 1000
         seccompProfile:
           type: RuntimeDefault
+      volumes:
+        - name: logs
+          persistentVolumeClaim:
+            claimName: minigolf-logs
