@@ -5,6 +5,8 @@ metadata:
   namespace: minigolf
   labels:
     app: minigolf
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: minigolf-redirect-to-aapeli@kubernetescrd
   # No TLS section: SSL is terminated upstream at the load balancer and the
   # cluster only sees plain HTTP on port 80. Traefik (k3s default) handles
   # WebSocket upgrades on /ws transparently — no extra annotation needed.

@@ -1,0 +1,12 @@
+# minigolf.0m.fi now forwards to the game's page in the Aapeli library.
+# The query string is kept; #replay= fragments are carried over by browsers.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: redirect-to-aapeli
+  namespace: minigolf
+spec:
+  redirectRegex:
+    regex: ^https?://minigolf\.0m\.fi/[^?]*(\?.*)?$
+    replacement: https://aapeli.0m.fi/games/minigolf-native/${1}
+    permanent: true
